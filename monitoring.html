@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring Terpadu - KOMBEL TONDA TALUSI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .glass-card { background: white; border: 1px solid #e2e8f0; border-radius: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01); }
+        .nav-link { cursor: pointer; font-weight: 600; color: #64748b; border-radius: 14px !important; margin: 0 4px; border: 1px solid transparent !important; }
+        .nav-pills .nav-link.active { background: #2563eb !important; color: white !important; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.2); }
+        th { background: #f1f5f9 !important; text-transform: uppercase; font-size: 11px !important; letter-spacing: 0.05em; color: #475569 !important; padding: 15px !important; }
+        .img-doc { width: 50px; height: 50px; object-fit: cover; border-radius: 10px; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status-badge { padding: 5px 12px; border-radius: 10px; font-size: 11px; font-bold: 700; text-transform: uppercase; }
+        .badge-hadir { background: #dcfce7; color: #15803d; }
+        .badge-izin { background: #fef9c3; color: #a16207; }
+        .badge-sakit { background: #ffedd5; color: #9a3412; }
+        .badge-alpa { background: #fee2e2; color: #b91c1c; }
+        .pagination-btn { width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #e2e8f0; background: white; font-size: 13px; font-weight: 600; transition: 0.2s; }
+        .pagination-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+    </style>
+</head>
+<body class="pb-10">
+
+<header class="bg-white border-b border-slate-200 py-4 mb-6 sticky top-0 z-[100]">
+    <div class="container mx-auto px-4 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-extrabold tracking-tight text-slate-800">E-MONITORING <span class="text-blue-600">KOMBEL TONDA TALUSI</span></h1>
+        </div>
+        <div class="hidden md:block text-sm font-semibold text-slate-500 bg-slate-100 px-4 py-2 rounded-2xl">
+            📅 <span id="currentDate"></span>
+        </div>
+    </div>
+</header>
+
+<div class="container mx-auto px-4">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        <div class="lg:col-span-3 glass-card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest">Statistik Kehadiran Seluruh Jenjang</h3>
+                <span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded-lg font-bold italic">Real-time Data</span>
+            </div>
+            <div style="height: 250px;"><canvas id="unifiedChart"></canvas></div>
+        </div>
+        <div class="glass-card p-6">
+            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 text-center">Jumlah</h3>
+            <div id="totalCounters" class="space-y-3">
+                </div>
+        </div>
+    </div>
+
+    <div class="glass-card p-4 mb-6 shadow-sm">
+        <ul class="nav nav-pills overflow-x-auto flex-nowrap mb-4" id="pills-tab">
+            <li class="nav-item"><a class="nav-link active" onclick="changeSheet('LogAbsensiGuru')">Guru</a></li>
+            <li class="nav-item"><a class="nav-link" onclick="changeSheet('LogAbsensiKepsek')">Kepsek</a></li>
+            <li class="nav-item"><a class="nav-link" onclick="changeSheet('LogIzin')">Izin</a></li>
+            <li class="nav-item"><a class="nav-link" onclick="changeSheet('LogSakit')">Sakit</a></li>
+            <li class="nav-item"><a class="nav-link" onclick="changeSheet('LogAlpa')">Alpa</a></li>
+        </ul>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div class="md:col-span-2">
+                <input type="text" id="searchInput" onkeyup="updateTable()" placeholder="Cari Nama/NIP..." class="form-control rounded-xl border-slate-200 text-sm py-2">
+            </div>
+            <div>
+                <select id="jenjangFilter" onchange="updateTable()" class="form-select rounded-xl border-slate-200 text-sm py-2">
+                    <option value="">Semua Jenjang</option>
+                </select>
+            </div>
+            <div>
+                <select id="schoolFilter" onchange="updateTable()" class="form-select rounded-xl border-slate-200 text-sm py-2">
+                    <option value="">Semua Sekolah</option>
+                </select>
+            </div>
+            <div>
+                <select id="limitSelect" onchange="updateTable(1)" class="form-select rounded-xl border-slate-200 text-sm py-2">
+                    <option value="10">10 Baris</option>
+                    <option value="20">20 Baris</option>
+                    <option value="50">50 Baris</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead id="thead"></thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+        <div class="bg-slate-50 p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div id="pageInfo" class="text-xs font-bold text-slate-400 uppercase"></div>
+            <div id="paginationLinks" class="flex gap-2"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const tsvLinks = {
+        "LogAbsensiGuru": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjupknyrxrlpdqiFsuiwIVjtAQ64uomidD4hhyESrA3vwgfXuYDAiApUBDKZrPjaAx7X2cWmtVQDb1/pub?gid=2026143566&single=true&output=tsv",
+        "LogAbsensiKepsek": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjupknyrxrlpdqiFsuiwIVjtAQ64uomidD4hhyESrA3vwgfXuYDAiApUBDKZrPjaAx7X2cWmtVQDb1/pub?gid=260847474&single=true&output=tsv",
+        "LogIzin": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjupknyrxrlpdqiFsuiwIVjtAQ64uomidD4hhyESrA3vwgfXuYDAiApUBDKZrPjaAx7X2cWmtVQDb1/pub?gid=1336986805&single=true&output=tsv",
+        "LogSakit": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjupknyrxrlpdqiFsuiwIVjtAQ64uomidD4hhyESrA3vwgfXuYDAiApUBDKZrPjaAx7X2cWmtVQDb1/pub?gid=1730059198&single=true&output=tsv",
+        "LogAlpa": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjupknyrxrlpdqiFsuiwIVjtAQ64uomidD4hhyESrA3vwgfXuYDAiApUBDKZrPjaAx7X2cWmtVQDb1/pub?gid=1401059492&single=true&output=tsv"
+    };
+
+    let rawData = [];
+    let headers = [];
+    let currentPage = 1;
+    let chartInstance = null;
+    let allStats = { Hadir: 0, Izin: 0, Sakit: 0, Alpa: 0 };
+
+    function changeSheet(key) {
+        document.querySelectorAll('.nav-link').forEach(el => {
+            el.classList.remove('active');
+            if(el.getAttribute('onclick').includes(key)) el.classList.add('active');
+        });
+        loadData(key);
+    }
+
+    async function loadData(key) {
+        // Step 1: Ambil data khusus untuk tabel
+        Papa.parse(tsvLinks[key], {
+            download: true,
+            delimiter: "\t",
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                rawData = results.data;
+                headers = results.meta.fields;
+                populateFilters();
+                updateTable(1);
+                loadUnifiedStats(); // Update grafik terpadu
+            }
+        });
+    }
+
+    // Fungsi mengambil semua sheet untuk Statistik Gabungan
+    async function loadUnifiedStats() {
+        allStats = { Hadir: 0, Izin: 0, Sakit: 0, Alpa: 0 };
+        const keys = Object.keys(tsvLinks);
+        
+        await Promise.all(keys.map(key => {
+            return new Promise(resolve => {
+                Papa.parse(tsvLinks[key], {
+                    download: true,
+                    delimiter: "\t",
+                    header: true,
+                    complete: function(res) {
+                        const count = res.data.filter(r => Object.values(r).some(v => v)).length;
+                        if(key.includes('Guru') || key.includes('Kepsek')) allStats.Hadir += count;
+                        else if(key.includes('Izin')) allStats.Izin += count;
+                        else if(key.includes('Sakit')) allStats.Sakit += count;
+                        else if(key.includes('Alpa')) allStats.Alpa += count;
+                        resolve();
+                    }
+                });
+            });
+        }));
+        renderChart();
+    }
+
+    function populateFilters() {
+        const schoolKey = headers.find(h => h.toLowerCase().includes('sekolah'));
+        const jenjangKey = headers.find(h => h.toLowerCase().includes('jenjang'));
+        
+        const sFilter = document.getElementById('schoolFilter');
+        const jFilter = document.getElementById('jenjangFilter');
+
+        sFilter.innerHTML = '<option value="">Semua Sekolah</option>';
+        jFilter.innerHTML = '<option value="">Semua Jenjang</option>';
+
+        if(schoolKey) {
+            [...new Set(rawData.map(r => r[schoolKey]))].filter(Boolean).sort()
+            .forEach(s => sFilter.innerHTML += `<option value="${s}">${s}</option>`);
+        }
+        if(jenjangKey) {
+            [...new Set(rawData.map(r => r[jenjangKey]))].filter(Boolean).sort()
+            .forEach(j => jFilter.innerHTML += `<option value="${j}">${j}</option>`);
+        }
+    }
+
+    function updateTable(page = 1) {
+        currentPage = page;
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const school = document.getElementById('schoolFilter').value;
+        const jenjang = document.getElementById('jenjangFilter').value;
+        const limit = parseInt(document.getElementById('limitSelect').value);
+
+        const sKey = headers.find(h => h.toLowerCase().includes('sekolah'));
+        const jKey = headers.find(h => h.toLowerCase().includes('jenjang'));
+
+        const filtered = rawData.filter(row => {
+            const mSearch = Object.values(row).some(v => String(v).toLowerCase().includes(search));
+            const mSchool = !school || (sKey && row[sKey] === school);
+            const mJenjang = !jenjang || (jKey && row[jKey] === jenjang);
+            return mSearch && mSchool && mJenjang;
+        });
+
+        const totalPages = Math.ceil(filtered.length / limit);
+        const start = (currentPage - 1) * limit;
+        
+        renderHeader();
+        renderRows(filtered.slice(start, start + limit));
+        renderPagination(filtered.length, totalPages, limit);
+    }
+
+    function renderHeader() {
+        document.getElementById('thead').innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+    }
+
+    function renderRows(data) {
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = data.length ? data.map(row => {
+            return `<tr>${headers.map(h => {
+                let val = row[h] || '-';
+                if(String(val).includes('drive.google.com')) {
+                    const id = val.match(/[-\w]{25,}/);
+                    return `<td><img src="https://drive.google.com/thumbnail?id=${id}&sz=w100" class="img-doc" onclick="window.open('${val}', '_blank')"></td>`;
+                }
+                if(h.toLowerCase() === 'status') {
+                    return `<td><span class="status-badge badge-${val.toLowerCase()}">${val}</span></td>`;
+                }
+                return `<td class="text-xs font-semibold text-slate-600">${val}</td>`;
+            }).join('')}</tr>`;
+        }).join('') : `<tr><td colspan="${headers.length}" class="text-center py-10 text-slate-400">Data tidak ditemukan</td></tr>`;
+    }
+
+    function renderPagination(total, totalPages, limit) {
+        document.getElementById('pageInfo').innerText = `TOTAL: ${total} DATA`;
+        const links = document.getElementById('paginationLinks');
+        links.innerHTML = '';
+        for(let i = 1; i <= totalPages; i++) {
+            if(i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                links.innerHTML += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="updateTable(${i})">${i}</button>`;
+            }
+        }
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('unifiedChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Hadir', 'Izin', 'Sakit', 'Alpa'],
+                datasets: [{
+                    label: 'Jumlah Orang',
+                    data: [allStats.Hadir, allStats.Izin, allStats.Sakit, allStats.Alpa],
+                    backgroundColor: ['#2563eb', '#eab308', '#f97316', '#ef4444'],
+                    borderRadius: 12,
+                    barThickness: 50
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { borderDash: [5, 5] } }, x: { grid: { display: false } } }
+            }
+        });
+
+        // Update Summary Counter
+        const counters = document.getElementById('totalCounters');
+        counters.innerHTML = Object.entries(allStats).map(([label, count]) => `
+            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <span class="text-[11px] font-bold text-slate-500 uppercase">${label}</span>
+                <span class="text-lg font-extrabold text-slate-800">${count}</span>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('currentDate').innerText = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    window.onload = () => changeSheet('LogAbsensiGuru');
+</script>
+
+</body>
+</html>
