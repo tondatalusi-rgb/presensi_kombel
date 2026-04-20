@@ -239,42 +239,48 @@
             document.getElementById('video').classList.remove('hidden'); 
         }
 
-        function initLocation() {
+async function initLocation() {
     navigator.geolocation.getCurrentPosition(async (pos) => {
         userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
         document.getElementById('locText').innerText = `📍 Koord: ${userCoords.lat.toFixed(6)}, ${userCoords.lon.toFixed(6)}`;
         
         try {
-            // Menggunakan user-agent sesuai kebijakan Nominatim agar tidak diblokir
-            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lon}`, {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lon}&zoom=14`, {
                 headers: { 'User-Agent': 'E-Absensi-Donggala' }
             });
             const data = await response.json();
             const addr = data.address;
             
-            // Penanganan Desa: Cek village, suburb, atau hamlet
-            wilayah.desa = addr.village || addr.suburb || addr.hamlet || addr.town || "-";
+            // 1. Ambil Desa (Menggunakan prioritas umum)
+            const desa = addr.village || addr.suburb || addr.hamlet || addr.town || "-";
             
-            // Penanganan Kecamatan: Cek city_district, county, municipality, atau city
-            // Di Indonesia, Nominatim sering menyimpan nama kecamatan di properti 'county' atau 'city_district'
-            wilayah.kecamatan = addr.city_district || addr.county || addr.municipality || addr.city || "-";
-            
-            // Hapus kata "Kabupaten" jika terbaca di bagian kecamatan agar lebih rapi
-            wilayah.kecamatan = wilayah.kecamatan.replace(/Kabupaten /g, "");
+            // 2. Ambil Kecamatan (Nominatim biasanya menaruhnya di county atau city_district)
+            // Kita ambil dari data OSM, lalu pastikan formatnya "Kec. [Nama]"
+            let rawKec = addr.county || addr.city_district || "";
+            // Hapus prefix jika ada agar tidak ganda
+            rawKec = rawKec.replace(/^(Kecamatan|Kabupaten)\s+/i, "");
+            const kecamatan = rawKec ? `KEC. ${rawKec.toUpperCase()}` : "KEC. -";
 
-            document.getElementById('detailAlamat').innerText = `${wilayah.desa}, KEC. ${wilayah.kecamatan}`.toUpperCase();
+            // 3. Ambil Kabupaten (Biasanya ada di properti 'county' jika tidak terbaca di atas, atau 'state_district')
+            const kab = addr.county || addr.city || "DONGGALA"; // Default ke DONGGALA jika tidak terdeteksi
+            const kabupaten = kab.replace(/^(Kabupaten)\s+/i, "").toUpperCase();
+
+            // Simpan ke variabel global untuk pengiriman payload
+            wilayah.desa = desa;
+            wilayah.kecamatan = rawKec; // Simpan versi bersih untuk database
+
+            // Tampilkan ke UI: DESA, KEC. NAMA, KAB. NAMA
+            document.getElementById('detailAlamat').innerText = 
+                `${desa.toUpperCase()}, ${kecamatan}, KAB. ${kabupaten}`;
+                
         } catch (e) { 
             console.error(e);
             document.getElementById('detailAlamat').innerText = "Gagal memuat detail wilayah"; 
         }
     }, (err) => { 
         document.getElementById('locText').innerText = "❌ GPS Tidak Aktif"; 
-    }, { 
-        enableHighAccuracy: true,
-        timeout: 10000 
-    });
+    }, { enableHighAccuracy: true, timeout: 10000 });
 }
-
         async function submitAbsensi() {
             const status = document.getElementById('statusAbsen').value;
             if(!imgData && status !== "Alpa") return alert("Ambil foto bukti!");
