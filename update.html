@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .gradient-custom { background: linear-gradient(135deg, #4338ca 0%, #1e1b4b 100%); }
-        .camera-container { position: relative; width: 100%; aspect-ratio: 3/4; overflow: hidden; border-radius: 2rem; background: black; }
+        .camera-container { position: relative; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 2rem; background: black; }
         #video, #photoPreview { width: 100%; height: 100%; object-fit: cover; border-radius: 2rem; }
         .mirror { transform: scaleX(-1); }
         .hidden { display: none; }
@@ -16,136 +16,229 @@
 <body class="bg-indigo-50 min-h-screen font-sans">
 
     <div id="loginSection" class="flex items-center justify-center min-h-screen p-4">
-        <div class="max-w-md w-full bg-white p-8 rounded-[2.5rem] shadow-2xl border text-center">
-            <h1 class="text-2xl font-black text-indigo-900 uppercase">PRESENSI KOMBEL</h1>
+        <div class="max-w-md w-full bg-white p-8 rounded-[2.5rem] shadow-2xl border border-indigo-100 text-center">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e5/Lambang_Kabupaten_Donggala_%282015-sekarang%29.png" class="h-16 mx-auto mb-6">
+            <h1 class="text-2xl font-black text-indigo-900 uppercase">PRESENSI KEGIATAN KOMBEL</h1>
             <form id="loginForm" class="space-y-4 mt-6">
-                <input type="number" id="nip" placeholder="Masukkan NIP" required class="w-full p-4 bg-gray-50 border rounded-2xl text-center">
-                <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold uppercase">Masuk</button>
+                <input type="number" id="nip" placeholder="Masukkan NIP" required class="w-full p-4 bg-gray-50 border rounded-2xl text-center font-mono text-lg outline-none focus:ring-2 focus:ring-indigo-500">
+                <button type="submit" id="btnLog" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg uppercase">Masuk Dashboard</button>
             </form>
         </div>
     </div>
 
     <div id="mainSection" class="hidden pb-10">
         <div class="gradient-custom text-white p-8 rounded-b-[3rem] shadow-xl">
-            <h2 id="userNameDisp" class="text-xl font-bold italic">-</h2>
-            <span id="detailAlamat" class="text-[10px] opacity-80 uppercase">Mendeteksi lokasi...</span>
-            <div id="locText" class="text-[10px] bg-white/10 p-2 mt-2 rounded-lg">📍 Mencari koordinat...</div>
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex flex-col">
+                    <h2 id="userNameDisp" class="text-xl font-bold italic">-</h2>
+                    <span id="detailAlamat" class="text-[10px] opacity-80 uppercase tracking-wider font-semibold">Mencari detail wilayah...</span>
+                </div>
+                <button onclick="logout()" class="text-xs bg-red-500/30 px-3 py-1 rounded-lg">Keluar</button>
+            </div>
+            <div id="locText" class="text-xs bg-white/10 p-3 rounded-xl backdrop-blur-md">📍 Mendeteksi koordinat...</div>
         </div>
 
-        <div class="max-w-md mx-auto p-5 space-y-6">
+        <div class="max-w-md mx-auto p-5 space-y-6 -mt-4">
             <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
-                <select id="statusAbsen" onchange="toggleStatusUI()" class="w-full p-3 bg-indigo-600 text-white rounded-xl font-bold outline-none">
-                    <option value="Hadir">HADIR</option>
-                    <option value="Izin">IZIN</option>
-                    <option value="Sakit">SAKIT</option>
-                </select>
-                <input type="text" id="peran" readonly class="w-full p-3 bg-gray-100 border rounded-xl font-bold text-gray-500">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="peran" readonly class="p-3 bg-indigo-50 border rounded-xl font-bold text-indigo-700">
+                    <select id="jenjang" class="p-3 bg-gray-50 border rounded-xl font-semibold outline-none">
+                        <option value="SD">SD</option><option value="SMP">SMP</option><option value="TK">TK/PAUD</option>
+                    </select>
+                </div>
                 <input type="text" id="namaSekolah" readonly class="w-full p-3 bg-gray-100 border rounded-xl font-bold text-gray-500">
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-gray-400 ml-2 uppercase">Status Kehadiran</label>
+                    <select id="statusAbsen" onchange="toggleStatusUI()" class="w-full p-3 bg-indigo-600 text-white rounded-xl font-bold outline-none">
+                        <option value="Hadir">HADIR (SHIFT)</option>
+                        <option value="Izin">IZIN</option>
+                        <option value="Sakit">SAKIT</option>
+                        <option value="Alpa">ALPA</option>
+                    </select>
+                </div>
+
+                <div id="shiftBox" class="grid grid-cols-2 gap-2">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-400 ml-1 uppercase">Jam Mulai</label>
+                        <input type="time" id="shiftMulai" class="w-full p-2 bg-gray-50 border rounded-xl text-center font-bold">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-400 ml-1 uppercase">Jam Selesai</label>
+                        <input type="time" id="shiftSelesai" class="w-full p-2 bg-gray-50 border rounded-xl text-center font-bold">
+                    </div>
+                </div>
+
+                <div id="formGuru" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="kelas" placeholder="Kelas" class="p-3 bg-gray-50 border rounded-xl outline-none">
+                        <input type="text" id="mapel" placeholder="Mapel" class="p-3 bg-gray-50 border rounded-xl outline-none">
+                    </div>
+                    <input type="text" id="bab" placeholder="Bab Tema" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
+                    <input type="text" id="materi" placeholder="Materi / Sub Tema" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
+                    
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-400 ml-2 uppercase">Jumlah Kehadiran Siswa</label>
+                        <input type="number" id="jmlSiswa" placeholder="0" class="w-full p-3 bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-indigo-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div id="formKepsek" class="hidden">
+                    <textarea id="catatanKegiatan" placeholder="Catatan kegiatan manajerial..." class="w-full p-4 bg-gray-50 border rounded-2xl h-24 outline-none"></textarea>
+                </div>
+
+                <div id="keteranganBox" class="hidden">
+                    <textarea id="keterangan" placeholder="Berikan alasan ketidakhadiran..." class="w-full p-4 bg-gray-50 border border-red-200 rounded-2xl h-24 outline-none"></textarea>
+                </div>
             </div>
 
             <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border text-center">
-                <div class="camera-container mb-4">
+                <div class="camera-container mb-4 shadow-xl">
                     <video id="video" autoplay playsinline class="mirror"></video>
                     <img id="photoPreview" class="hidden absolute inset-0 mirror">
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="takePicture()" class="py-3 bg-indigo-600 text-white rounded-xl font-bold uppercase text-xs">Ambil Foto</button>
-                    <button onclick="resetCamera()" class="py-3 bg-gray-200 text-gray-700 rounded-xl font-bold uppercase text-xs">Ulang</button>
+                    <label class="py-3 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer uppercase text-xs">Upload
+                        <input type="file" accept="image/*" class="hidden" onchange="handleFileUpload(this)">
+                    </label>
                 </div>
+                <button onclick="switchCamera()" class="w-full mt-2 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold text-[10px] uppercase tracking-widest">🔄 Ganti Kamera</button>
+                <button onclick="resetCamera()" class="mt-2 text-[10px] text-gray-400 uppercase font-bold">Ulang Foto</button>
             </div>
-            <button id="btnSubmit" onclick="submitAbsensi()" class="w-full bg-indigo-900 text-white py-5 rounded-[2.5rem] font-black uppercase">Kirim Absensi</button>
+
+            <button id="btnSubmit" onclick="submitAbsensi()" class="w-full bg-indigo-900 text-white py-5 rounded-[2.5rem] font-black text-lg shadow-2xl uppercase tracking-widest transition-all">Kirim Absensi</button>
         </div>
     </div>
 
-<script>
-    const API = 'https://script.google.com/macros/s/AKfycbygcO6AaLNmQNML9SmvpdBJIrgYn5GZqeEvCQ_do0WOpg_F7tC-48YKN2uQDAR4cX4/exec';
-    let userCoords = { lat: 0, lon: 0 }, imgData = null;
-    let wilayah = { desa: "TOWALE", kecamatan: "-", kabupaten: "DONGGALA" };
+    <script>
+        const API = 'https://script.google.com/macros/s/AKfycbygcO6AaLNmQNML9SmvpdBJIrgYn5GZqeEvCQ_do0WOpg_F7tC-48YKN2uQDAR4cX4/exec'; 
+        let userCoords = { lat: 0, lon: 0 }, imgData = null;
+        let wilayah = { desa: "-", kecamatan: "-" };
+        let currentFacingMode = "user";
 
-    // Initialize Login
-    document.getElementById('loginForm').onsubmit = async (e) => {
-        e.preventDefault();
-        const nip = document.getElementById('nip').value;
-        const res = await fetch(`${API}?action=checkNIP&nip=${nip}`);
-        const data = await res.json();
-        if(data.success) {
-            localStorage.setItem('userNIP', nip);
-            localStorage.setItem('userName', data.nama);
-            localStorage.setItem('userPeran', data.peran);
-            localStorage.setItem('userSekolah', data.sekolah);
-            location.reload();
-        } else alert("NIP Tidak Terdaftar!");
-    };
-
-    if(localStorage.getItem('userNIP')) {
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('mainSection').classList.remove('hidden');
-        document.getElementById('userNameDisp').innerText = localStorage.getItem('userName');
-        document.getElementById('peran').value = localStorage.getItem('userPeran');
-        document.getElementById('namaSekolah').value = localStorage.getItem('userSekolah');
-        
-        initCamera('user');
-        initLocation();
-    }
-
-    async function initCamera(mode) {
-        try {
-            const videoEl = document.getElementById('video');
-            if (videoEl.srcObject) videoEl.srcObject.getTracks().forEach(t => t.stop());
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode } });
-            videoEl.srcObject = stream;
-        } catch(e) { alert("Izinkan akses kamera di pengaturan browser!"); }
-    }
-
-    async function initLocation() {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-            userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-            document.getElementById('locText').innerText = `📍 ${userCoords.lat.toFixed(5)}, ${userCoords.lon.toFixed(5)}`;
-            
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lon}`);
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const nipVal = document.getElementById('nip').value;
+            const res = await fetch(`${API}?action=checkNIP&nip=${nipVal}`);
             const data = await res.json();
-            const addr = data.address;
-            
-            wilayah.desa = (addr.village || addr.suburb || "TOWALE").toUpperCase();
-            wilayah.kecamatan = (addr.county || "-").toUpperCase().replace("KECAMATAN ", "");
-            
-            document.getElementById('detailAlamat').innerText = `${wilayah.desa}, KEC. ${wilayah.kecamatan}, KAB. DONGGALA`;
-        }, () => {
-            document.getElementById('detailAlamat').innerText = "TOWALE, KEC. -, KAB. DONGGALA";
-        }, { enableHighAccuracy: true, timeout: 10000 });
-    }
-
-    function takePicture() {
-        const v = document.getElementById('video'), c = document.createElement('canvas');
-        c.width = v.videoWidth; c.height = v.videoHeight;
-        c.getContext('2d').drawImage(v, 0, 0);
-        imgData = c.toDataURL('image/jpeg', 0.6);
-        document.getElementById('photoPreview').src = imgData;
-        document.getElementById('photoPreview').classList.remove('hidden');
-        v.classList.add('hidden');
-    }
-
-    function resetCamera() { 
-        imgData = null; document.getElementById('photoPreview').classList.add('hidden'); 
-        document.getElementById('video').classList.remove('hidden'); 
-    }
-
-    async function submitAbsensi() {
-        if(userCoords.lat === 0) return alert("Menunggu GPS...!");
-        const btn = document.getElementById('btnSubmit');
-        btn.disabled = true; btn.innerText = "MENGIRIM...";
-        const payload = { 
-            action: 'submitAbsen', 
-            nip: localStorage.getItem('userNIP'), 
-            desa: wilayah.desa, 
-            kecamatan: wilayah.kecamatan, 
-            image: imgData, 
-            lat: userCoords.lat, 
-            lon: userCoords.lon 
+            if(data.success) {
+                localStorage.setItem('userNIP', nipVal);
+                localStorage.setItem('userName', data.nama);
+                localStorage.setItem('userPeran', data.peran);
+                localStorage.setItem('userSekolah', data.sekolah);
+                location.reload();
+            } else alert("NIP Tidak Terdaftar!");
         };
-        await fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-        alert("✅ LAPORAN TERKIRIM!"); location.reload();
-    }
-</script>
+
+        if(localStorage.getItem('userNIP')) {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('mainSection').classList.remove('hidden');
+            document.getElementById('userNameDisp').innerText = localStorage.getItem('userName');
+            document.getElementById('peran').value = localStorage.getItem('userPeran');
+            document.getElementById('namaSekolah').value = localStorage.getItem('userSekolah');
+            toggleStatusUI(); initCamera(currentFacingMode); initLocation();
+        }
+
+        function toggleStatusUI() {
+            const status = document.getElementById('statusAbsen').value;
+            const peran = localStorage.getItem('userPeran');
+            const shift = document.getElementById('shiftBox');
+            const g = document.getElementById('formGuru');
+            const k = document.getElementById('formKepsek');
+            const ket = document.getElementById('keteranganBox');
+
+            if(status === "Hadir") {
+                shift.classList.remove('hidden'); ket.classList.add('hidden');
+                if(peran === "GURU") { g.classList.remove('hidden'); k.classList.add('hidden'); }
+                else { g.classList.add('hidden'); k.classList.remove('hidden'); }
+            } else {
+                shift.classList.add('hidden'); g.classList.add('hidden'); k.classList.add('hidden'); ket.classList.remove('hidden');
+            }
+        }
+
+        async function initCamera(facingMode) {
+            try {
+                const oldStream = document.getElementById('video').srcObject;
+                if (oldStream) oldStream.getTracks().forEach(track => track.stop());
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
+                document.getElementById('video').srcObject = stream;
+                currentFacingMode = facingMode;
+            } catch (err) { alert("Gagal akses kamera!"); }
+        }
+
+        function switchCamera() {
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            initCamera(currentFacingMode);
+        }
+
+        function takePicture() {
+            const v = document.getElementById('video'), c = document.createElement('canvas');
+            c.width = v.videoWidth; c.height = v.videoHeight;
+            const ctx = c.getContext('2d');
+            if(currentFacingMode === "user") { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+            ctx.drawImage(v, 0, 0);
+            imgData = c.toDataURL('image/jpeg', 0.6);
+            document.getElementById('photoPreview').src = imgData;
+            document.getElementById('photoPreview').classList.remove('hidden');
+            v.classList.add('hidden');
+        }
+
+        function handleFileUpload(input) {
+            const r = new FileReader();
+            r.onload = (e) => {
+                imgData = e.target.result;
+                document.getElementById('photoPreview').src = imgData;
+                document.getElementById('photoPreview').classList.remove('hidden');
+                document.getElementById('video').classList.add('hidden');
+            };
+            r.readAsDataURL(input.files[0]);
+        }
+
+        function resetCamera() { 
+            imgData = null; document.getElementById('photoPreview').classList.add('hidden'); 
+            document.getElementById('video').classList.remove('hidden'); 
+        }
+
+        async function initLocation() {
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                document.getElementById('locText').innerText = `📍 Koord: ${userCoords.lat.toFixed(6)}, ${userCoords.lon.toFixed(6)}`;
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lon}`);
+                    const data = await res.json();
+                    const addr = data.address;
+                    
+                    wilayah.desa = (addr.village || addr.suburb || addr.hamlet || "-").toUpperCase();
+                    
+                    // Logika Kecamatan dengan tanda '-' jika gagal
+                    const rawKec = addr.county || addr.city_district || null;
+                    wilayah.kecamatan = rawKec ? rawKec.replace(/^(Kecamatan|Kabupaten)\s+/i, "").toUpperCase() : "-";
+                    
+                    document.getElementById('detailAlamat').innerText = `${wilayah.desa}, KEC. ${wilayah.kecamatan}, KAB. DONGGALA`;
+                } catch (e) {
+                    wilayah.kecamatan = "-";
+                    document.getElementById('detailAlamat').innerText = `${wilayah.desa}, KEC. -, KAB. DONGGALA`;
+                }
+            }, () => {
+                document.getElementById('locText').innerText = "❌ GPS Tidak Aktif";
+                wilayah.kecamatan = "-";
+            }, { enableHighAccuracy: true });
+        }
+
+        async function submitAbsensi() {
+            if(!imgData && document.getElementById('statusAbsen').value !== "Alpa") return alert("Ambil foto bukti!");
+            const btn = document.getElementById('btnSubmit');
+            btn.disabled = true; btn.innerText = "MENGIRIM...";
+            const payload = { 
+                action: 'submitAbsen', nip: localStorage.getItem('userNIP'), nama: localStorage.getItem('userName'),
+                desa: wilayah.desa, kecamatan: wilayah.kecamatan, image: imgData, lat: userCoords.lat, lon: userCoords.lon 
+            };
+            await fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+            alert("✅ LAPORAN TERKIRIM!"); location.reload();
+        }
+
+        function logout() { localStorage.clear(); location.reload(); }
+    </script>
 </body>
 </html>
