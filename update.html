@@ -7,8 +7,25 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .gradient-custom { background: linear-gradient(135deg, #4338ca 0%, #1e1b4b 100%); }
-        .camera-container { position: relative; width: 100%; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 2rem; background: black; }
-        #video, #photoPreview { width: 100%; height: 100%; object-fit: cover; border-radius: 2rem; }
+        
+        /* Tampilan Kamera Full Ruangan */
+        .camera-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3 / 4; /* Rasio lebih tinggi untuk cakupan ruangan */
+            overflow: hidden;
+            border-radius: 2rem;
+            background: black;
+        }
+
+        #video, #photoPreview { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; /* Mengisi seluruh layar kontainer */
+            border-radius: 2rem;
+        }
+
+        /* Efek Mirror untuk Kamera Depan */
         .mirror { transform: scaleX(-1); }
         .hidden { display: none; }
     </style>
@@ -103,7 +120,7 @@
                         <input type="file" accept="image/*" class="hidden" onchange="handleFileUpload(this)">
                     </label>
                 </div>
-                <button onclick="switchCamera()" class="w-full mt-2 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold text-[10px] uppercase tracking-widest">🔄 Ganti Kamera</button>
+                <button onclick="switchCamera()" class="w-full mt-2 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold text-[10px] uppercase tracking-widest">🔄 Ganti Kamera (Depan/Belakang)</button>
                 <button onclick="resetCamera()" class="mt-2 text-[10px] text-gray-400 uppercase font-bold">Ulang Foto</button>
             </div>
 
@@ -112,10 +129,10 @@
     </div>
 
     <script>
-        const API = 'https://script.google.com/macros/s/AKfycbygcO6AaLNmQNML9SmvpdBJIrgYn5GZqeEvCQ_do0WOpg_F7tC-48YKN2uQDAR4cX4/exec'; 
+        const API = 'https://script.google.com/macros/s/AKfycbx1Z7zOb9QbVNV5iM4CJgJfXGlXWnLFIotG3xdwM52tauXdDOwAmEwgUxXgiYcfZ1s_/exec'; 
         let userCoords = { lat: 0, lon: 0 }, imgData = null;
         let wilayah = { desa: "-", kecamatan: "-" };
-        let currentFacingMode = "user";
+        let currentFacingMode = "user"; // Mulai dengan kamera depan
 
         document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
@@ -161,22 +178,42 @@
             try {
                 const oldStream = document.getElementById('video').srcObject;
                 if (oldStream) oldStream.getTracks().forEach(track => track.stop());
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
-                document.getElementById('video').srcObject = stream;
+
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
+                const videoEl = document.getElementById('video');
+                const photoEl = document.getElementById('photoPreview');
+                
+                videoEl.srcObject = stream;
                 currentFacingMode = facingMode;
-            } catch (err) { alert("Gagal akses kamera!"); }
+
+                if(facingMode === "user") {
+                    videoEl.classList.add('mirror');
+                    photoEl.classList.add('mirror');
+                } else {
+                    videoEl.classList.remove('mirror');
+                    photoEl.classList.remove('mirror');
+                }
+            } catch (err) { alert("Gagal akses kamera: " + err); }
         }
 
         function switchCamera() {
-            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
-            initCamera(currentFacingMode);
+            const newMode = (currentFacingMode === "user") ? "environment" : "user";
+            initCamera(newMode);
         }
 
         function takePicture() {
-            const v = document.getElementById('video'), c = document.createElement('canvas');
+            const v = document.getElementById('video');
+            const c = document.createElement('canvas');
             c.width = v.videoWidth; c.height = v.videoHeight;
             const ctx = c.getContext('2d');
-            if(currentFacingMode === "user") { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+            
+            if(currentFacingMode === "user") {
+                ctx.translate(c.width, 0);
+                ctx.scale(-1, 1);
+            }
+            
             ctx.drawImage(v, 0, 0);
             imgData = c.toDataURL('image/jpeg', 0.6);
             document.getElementById('photoPreview').src = imgData;
@@ -191,57 +228,83 @@
                 document.getElementById('photoPreview').src = imgData;
                 document.getElementById('photoPreview').classList.remove('hidden');
                 document.getElementById('video').classList.add('hidden');
+                document.getElementById('photoPreview').classList.remove('mirror');
             };
             r.readAsDataURL(input.files[0]);
         }
 
         function resetCamera() { 
-            imgData = null; document.getElementById('photoPreview').classList.add('hidden'); 
+            imgData = null; 
+            document.getElementById('photoPreview').classList.add('hidden'); 
             document.getElementById('video').classList.remove('hidden'); 
         }
-        // Tambahkan daftar kecamatan di bagian atas skrip Anda
-const daftarKecamatan = [
-    "BANAWA", "BANAWA TENGAH", "BANAWA SELATAN", "RIO PAKAVA", 
-    "PINEMBANI", "TANANTOVEA", "LABUAN", "SINDUE", 
-    "SINDUE TOMBUSA BORA", "SINDUE TOBATA", "SIRENJA", 
-    "BALAESANG", "BALAESANG TANJUNG", "DAMPELAS", 
-    "SOJOL", "SOJOL UTARA"
-];
 
-        async function initLocation() {
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-                document.getElementById('locText').innerText = `📍 Koord: ${userCoords.lat.toFixed(6)}, ${userCoords.lon.toFixed(6)}`;
-                try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lon}`);
-                    const data = await res.json();
-                    const addr = data.address;
-                    
-                    wilayah.desa = (addr.village || addr.suburb || addr.hamlet || "-").toUpperCase();
-                    
-                    // Logika Kecamatan dengan tanda '-' jika gagal
-                    const rawKec = addr.county || addr.city_district || null;
-                    wilayah.kecamatan = rawKec ? rawKec.replace(/^(Kecamatan|Kabupaten)\s+/i, "").toUpperCase() : "-";
-                    
-                    document.getElementById('detailAlamat').innerText = `${wilayah.desa}, KEC. ${wilayah.kecamatan}, KAB. DONGGALA`;
-                } catch (e) {
-                    wilayah.kecamatan = "-";
-                    document.getElementById('detailAlamat').innerText = `${wilayah.desa}, KEC. -, KAB. DONGGALA`;
-                }
-            }, () => {
-                document.getElementById('locText').innerText = "❌ GPS Tidak Aktif";
-                wilayah.kecamatan = "-";
-            }, { enableHighAccuracy: true });
+        function initLocation() {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        document.getElementById('locText').innerText = `📍 Koord: ${userCoords.lat.toFixed(6)}, ${userCoords.lon.toFixed(6)}`;
+        
+        try {
+            // Menggunakan user-agent sesuai kebijakan Nominatim agar tidak diblokir
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lon}`, {
+                headers: { 'User-Agent': 'E-Absensi-Donggala' }
+            });
+            const data = await response.json();
+            const addr = data.address;
+            
+            // Penanganan Desa: Cek village, suburb, atau hamlet
+            wilayah.desa = addr.village || addr.suburb || addr.hamlet || addr.town || "-";
+            
+            // Penanganan Kecamatan: Cek city_district, county, municipality, atau city
+            // Di Indonesia, Nominatim sering menyimpan nama kecamatan di properti 'county' atau 'city_district'
+            wilayah.kecamatan = addr.city_district || addr.county || addr.municipality || addr.city || "-";
+            
+            // Hapus kata "Kabupaten" jika terbaca di bagian kecamatan agar lebih rapi
+            wilayah.kecamatan = wilayah.kecamatan.replace(/Kabupaten /g, "");
+
+            document.getElementById('detailAlamat').innerText = `${wilayah.desa}, KEC. ${wilayah.kecamatan}`.toUpperCase();
+        } catch (e) { 
+            console.error(e);
+            document.getElementById('detailAlamat').innerText = "Gagal memuat detail wilayah"; 
         }
+    }, (err) => { 
+        document.getElementById('locText').innerText = "❌ GPS Tidak Aktif"; 
+    }, { 
+        enableHighAccuracy: true,
+        timeout: 10000 
+    });
+}
 
         async function submitAbsensi() {
-            if(!imgData && document.getElementById('statusAbsen').value !== "Alpa") return alert("Ambil foto bukti!");
+            const status = document.getElementById('statusAbsen').value;
+            if(!imgData && status !== "Alpa") return alert("Ambil foto bukti!");
+            
             const btn = document.getElementById('btnSubmit');
             btn.disabled = true; btn.innerText = "MENGIRIM...";
-            const payload = { 
-                action: 'submitAbsen', nip: localStorage.getItem('userNIP'), nama: localStorage.getItem('userName'),
-                desa: wilayah.desa, kecamatan: wilayah.kecamatan, image: imgData, lat: userCoords.lat, lon: userCoords.lon 
+
+            const payload = {
+                action: 'submitAbsen',
+                nip: localStorage.getItem('userNIP'),
+                nama: localStorage.getItem('userName'),
+                peran: localStorage.getItem('userPeran'),
+                jenjang: document.getElementById('jenjang').value,
+                namaSekolah: document.getElementById('namaSekolah').value,
+                status: status,
+                shiftMulai: document.getElementById('shiftMulai').value,
+                shiftSelesai: document.getElementById('shiftSelesai').value,
+                kelas: document.getElementById('kelas').value,
+                mapel: document.getElementById('mapel').value,
+                bab: document.getElementById('bab').value,
+                materi: document.getElementById('materi').value,
+                jmlSiswa: document.getElementById('jmlSiswa').value,
+                desa: wilayah.desa,
+                kecamatan: wilayah.kecamatan,
+                catatan: document.getElementById('catatanKegiatan').value,
+                keterangan: document.getElementById('keterangan').value,
+                image: imgData,
+                lat: userCoords.lat, lon: userCoords.lon
             };
+
             await fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
             alert("✅ LAPORAN TERKIRIM!"); location.reload();
         }
