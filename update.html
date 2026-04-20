@@ -170,50 +170,49 @@
 
     // --- Perbaikan Lokasi (Otomatis & Cepat) ---
     async function initLocation() {
-        document.getElementById('detailAlamat').innerText = "Mendeteksi lokasi...";
-        const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+    // Tambahkan timeout agar tidak menunggu terlalu lama
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        document.getElementById('locText').innerText = `📍 Koord: ${userCoords.lat.toFixed(6)}, ${userCoords.lon.toFixed(6)}`;
         
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-            userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-            document.getElementById('locText').innerText = `📍 Koord: ${userCoords.lat.toFixed(6)}, ${userCoords.lon.toFixed(6)}`;
-            
-            // Panggil API untuk mendapatkan nama desa/kecamatan
-            fetchLocationDetails(userCoords.lat, userCoords.lon);
-        }, (err) => {
-            document.getElementById('locText').innerText = "❌ GPS Belum Aktif";
-            document.getElementById('detailAlamat').innerText = "TOWALE, KEC. -, KAB. DONGGALA";
-        }, options);
-    }
-
-    async function fetchLocationDetails(lat, lon) {
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`, {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lon}&zoom=14`, {
                 headers: { 'User-Agent': 'E-Absensi-Donggala' }
             });
             const data = await response.json();
             const addr = data.address;
-
-            // Logika penetapan nilai
-            const desa = addr.village || addr.suburb || addr.hamlet || addr.town || "TOWALE";
+            
+            // 1. Ambil Desa
+            const desa = addr.village || addr.suburb || addr.hamlet || addr.town || "-";
+            
+            // 2. Ambil Kecamatan (Bersihkan prefix)
             let rawKec = addr.county || addr.city_district || "";
             rawKec = rawKec.replace(/^(Kecamatan|Kabupaten)\s+/i, "");
             const kecamatan = rawKec ? rawKec.toUpperCase() : "-";
-            
+
+            // 3. Ambil Kabupaten (Pastikan ini terdefinisi)
             let rawKab = addr.county || addr.city || "DONGGALA";
-            rawKab = rawKab.replace(/^(Kabupaten|Regency|City)\s+/i, "").replace(/\s+(Regency|Kabupaten|City)$/i, "");
+            rawKab = rawKab.replace(/^(Kabupaten|Regency|City)\s+/i, "");
             const kabupaten = rawKab.toUpperCase();
 
             // Simpan ke variabel global
             wilayah.desa = desa;
             wilayah.kecamatan = kecamatan;
+            wilayah.kabupaten = kabupaten; // Tambahkan ini agar tidak undefined
 
             // Tampilkan ke UI
-            document.getElementById('detailAlamat').innerText = `${desa.toUpperCase()}, KEC. ${kecamatan}, KAB. ${kabupaten}`;
-        } catch (e) {
-            document.getElementById('detailAlamat').innerText = "TOWALE, KEC. -, KAB. DONGGALA";
+            document.getElementById('detailAlamat').innerText = 
+                `${desa.toUpperCase()}, KEC. ${kecamatan}, KAB. ${kabupaten}`;
+                
+        } catch (e) { 
+            console.error(e);
+            document.getElementById('detailAlamat').innerText = "LOKASI TERDETEKSI"; 
         }
-    }
-
+    }, (err) => { 
+        document.getElementById('locText').innerText = "❌ GPS Tidak Aktif";
+        document.getElementById('detailAlamat').innerText = "TOWALE, KEC. -, KAB. DONGGALA";
+    }, { enableHighAccuracy: true, timeout: 10000 });
+}
     // --- Fungsi Pendukung Lainnya ---
     function switchCamera() {
         currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
