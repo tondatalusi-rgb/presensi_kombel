@@ -128,214 +128,133 @@
         </div>
     </div>
 
-    <script>
-        const API = 'https://script.google.com/macros/s/AKfycbygcO6AaLNmQNML9SmvpdBJIrgYn5GZqeEvCQ_do0WOpg_F7tC-48YKN2uQDAR4cX4/exec'; 
-        let userCoords = { lat: 0, lon: 0 }, imgData = null;
-        let wilayah = { desa: "-", kecamatan: "-" };
-        let currentFacingMode = "user"; // Mulai dengan kamera depan
+<script>
+    const API = 'https://script.google.com/macros/s/AKfycbygcO6AaLNmQNML9SmvpdBJIrgYn5GZqeEvCQ_do0WOpg_F7tC-48YKN2uQDAR4cX4/exec'; 
+    let userCoords = { lat: 0, lon: 0 }, imgData = null;
+    let wilayah = { desa: "TOWALE", kecamatan: "-" }; // Default nilai
+    let currentFacingMode = "user";
 
-        document.getElementById('loginForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const nipVal = document.getElementById('nip').value;
-            const res = await fetch(`${API}?action=checkNIP&nip=${nipVal}`);
-            const data = await res.json();
-            if(data.success) {
-                localStorage.setItem('userNIP', nipVal);
-                localStorage.setItem('userName', data.nama);
-                localStorage.setItem('userPeran', data.peran);
-                localStorage.setItem('userSekolah', data.sekolah);
-                location.reload();
-            } else alert("NIP Tidak Terdaftar!");
+    // --- Inisialisasi Saat Login Berhasil ---
+    if(localStorage.getItem('userNIP')) {
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('mainSection').classList.remove('hidden');
+        document.getElementById('userNameDisp').innerText = localStorage.getItem('userName');
+        document.getElementById('peran').value = localStorage.getItem('userPeran');
+        document.getElementById('namaSekolah').value = localStorage.getItem('userSekolah');
+        
+        // Panggil fungsi utama segera setelah login
+        toggleStatusUI(); 
+        initCamera(currentFacingMode); 
+        initLocation();
+    }
+
+    // --- Perbaikan Kamera (Lebih Stabil) ---
+    async function initCamera(facingMode) {
+        try {
+            const videoEl = document.getElementById('video');
+            if (videoEl.srcObject) {
+                videoEl.srcObject.getTracks().forEach(track => track.stop());
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } } 
+            });
+            
+            videoEl.srcObject = stream;
+            currentFacingMode = facingMode;
+        } catch (err) {
+            console.error("Kamera error:", err);
+            alert("Gagal akses kamera. Pastikan Anda memberi izin akses kamera pada browser.");
+        }
+    }
+
+    // --- Perbaikan Lokasi (Otomatis & Cepat) ---
+    async function initLocation() {
+        document.getElementById('detailAlamat').innerText = "Mendeteksi lokasi...";
+        const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+        
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+            document.getElementById('locText').innerText = `📍 Koord: ${userCoords.lat.toFixed(6)}, ${userCoords.lon.toFixed(6)}`;
+            
+            // Panggil API untuk mendapatkan nama desa/kecamatan
+            fetchLocationDetails(userCoords.lat, userCoords.lon);
+        }, (err) => {
+            document.getElementById('locText').innerText = "❌ GPS Belum Aktif";
+            document.getElementById('detailAlamat').innerText = "TOWALE, KEC. -, KAB. DONGGALA";
+        }, options);
+    }
+
+    async function fetchLocationDetails(lat, lon) {
+        try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`, {
+                headers: { 'User-Agent': 'E-Absensi-Donggala' }
+            });
+            const data = await response.json();
+            const addr = data.address;
+
+            // Logika penetapan nilai
+            const desa = addr.village || addr.suburb || addr.hamlet || addr.town || "TOWALE";
+            let rawKec = addr.county || addr.city_district || "";
+            rawKec = rawKec.replace(/^(Kecamatan|Kabupaten)\s+/i, "");
+            const kecamatan = rawKec ? rawKec.toUpperCase() : "-";
+            
+            let rawKab = addr.county || addr.city || "DONGGALA";
+            rawKab = rawKab.replace(/^(Kabupaten|Regency|City)\s+/i, "").replace(/\s+(Regency|Kabupaten|City)$/i, "");
+            const kabupaten = rawKab.toUpperCase();
+
+            // Simpan ke variabel global
+            wilayah.desa = desa;
+            wilayah.kecamatan = kecamatan;
+
+            // Tampilkan ke UI
+            document.getElementById('detailAlamat').innerText = `${desa.toUpperCase()}, KEC. ${kecamatan}, KAB. ${kabupaten}`;
+        } catch (e) {
+            document.getElementById('detailAlamat').innerText = "TOWALE, KEC. -, KAB. DONGGALA";
+        }
+    }
+
+    // --- Fungsi Pendukung Lainnya ---
+    function switchCamera() {
+        currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+        initCamera(currentFacingMode);
+    }
+
+    async function submitAbsensi() {
+        const status = document.getElementById('statusAbsen').value;
+        if(!imgData && status !== "Alpa") return alert("Ambil foto bukti!");
+        
+        const btn = document.getElementById('btnSubmit');
+        btn.disabled = true; btn.innerText = "MENGIRIM...";
+
+        const payload = {
+            action: 'submitAbsen',
+            nip: localStorage.getItem('userNIP'),
+            nama: localStorage.getItem('userName'),
+            peran: localStorage.getItem('userPeran'),
+            jenjang: document.getElementById('jenjang').value,
+            namaSekolah: document.getElementById('namaSekolah').value,
+            status: status,
+            shiftMulai: document.getElementById('shiftMulai').value,
+            shiftSelesai: document.getElementById('shiftSelesai').value,
+            kelas: document.getElementById('kelas').value,
+            mapel: document.getElementById('mapel').value,
+            bab: document.getElementById('bab').value,
+            materi: document.getElementById('materi').value,
+            jmlSiswa: document.getElementById('jmlSiswa').value,
+            desa: wilayah.desa,
+            kecamatan: wilayah.kecamatan,
+            catatan: document.getElementById('catatanKegiatan').value,
+            keterangan: document.getElementById('keterangan').value,
+            image: imgData,
+            lat: userCoords.lat,
+            lon: userCoords.lon
         };
 
-        if(localStorage.getItem('userNIP')) {
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('mainSection').classList.remove('hidden');
-            document.getElementById('userNameDisp').innerText = localStorage.getItem('userName');
-            document.getElementById('peran').value = localStorage.getItem('userPeran');
-            document.getElementById('namaSekolah').value = localStorage.getItem('userSekolah');
-            toggleStatusUI(); initCamera(currentFacingMode); initLocation();
-        }
-
-        function toggleStatusUI() {
-            const status = document.getElementById('statusAbsen').value;
-            const peran = localStorage.getItem('userPeran');
-            const shift = document.getElementById('shiftBox');
-            const g = document.getElementById('formGuru');
-            const k = document.getElementById('formKepsek');
-            const ket = document.getElementById('keteranganBox');
-
-            if(status === "Hadir") {
-                shift.classList.remove('hidden'); ket.classList.add('hidden');
-                if(peran === "GURU") { g.classList.remove('hidden'); k.classList.add('hidden'); }
-                else { g.classList.add('hidden'); k.classList.remove('hidden'); }
-            } else {
-                shift.classList.add('hidden'); g.classList.add('hidden'); k.classList.add('hidden'); ket.classList.remove('hidden');
-            }
-        }
-
-        async function initCamera(facingMode) {
-            try {
-                const oldStream = document.getElementById('video').srcObject;
-                if (oldStream) oldStream.getTracks().forEach(track => track.stop());
-
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } } 
-                });
-                const videoEl = document.getElementById('video');
-                const photoEl = document.getElementById('photoPreview');
-                
-                videoEl.srcObject = stream;
-                currentFacingMode = facingMode;
-
-                if(facingMode === "user") {
-                    videoEl.classList.add('mirror');
-                    photoEl.classList.add('mirror');
-                } else {
-                    videoEl.classList.remove('mirror');
-                    photoEl.classList.remove('mirror');
-                }
-            } catch (err) { alert("Gagal akses kamera: " + err); }
-        }
-
-        function switchCamera() {
-            const newMode = (currentFacingMode === "user") ? "environment" : "user";
-            initCamera(newMode);
-        }
-
-        function takePicture() {
-            const v = document.getElementById('video');
-            const c = document.createElement('canvas');
-            c.width = v.videoWidth; c.height = v.videoHeight;
-            const ctx = c.getContext('2d');
-            
-            if(currentFacingMode === "user") {
-                ctx.translate(c.width, 0);
-                ctx.scale(-1, 1);
-            }
-            
-            ctx.drawImage(v, 0, 0);
-            imgData = c.toDataURL('image/jpeg', 0.6);
-            document.getElementById('photoPreview').src = imgData;
-            document.getElementById('photoPreview').classList.remove('hidden');
-            v.classList.add('hidden');
-        }
-
-        function handleFileUpload(input) {
-            const r = new FileReader();
-            r.onload = (e) => {
-                imgData = e.target.result;
-                document.getElementById('photoPreview').src = imgData;
-                document.getElementById('photoPreview').classList.remove('hidden');
-                document.getElementById('video').classList.add('hidden');
-                document.getElementById('photoPreview').classList.remove('mirror');
-            };
-            r.readAsDataURL(input.files[0]);
-        }
-
-        function resetCamera() { 
-            imgData = null; 
-            document.getElementById('photoPreview').classList.add('hidden'); 
-            document.getElementById('video').classList.remove('hidden'); 
-        }
-
-async function initLocation() {
-    const locDisplay = document.getElementById('locText');
-    const addrDisplay = document.getElementById('detailAlamat');
-    
-    // Opsi dengan akurasi maksimal
-    const options = {
-        enableHighAccuracy: true,
-        timeout: 20000, // Durasi 20 detik untuk mencari sinyal terbaik
-        maximumAge: 0   // Tidak menggunakan cache, ambil data real-time
-    };
-
-    // Gunakan watchPosition agar posisi terupdate terus hingga akurat
-    const watchID = navigator.geolocation.watchPosition(async (pos) => {
-        const accuracy = pos.coords.accuracy;
-        
-        // Logika: Hanya ambil titik jika akurasi cukup baik (di bawah 50 meter)
-        // Jika belum akurat, tetap update koordinat di layar agar user tahu sedang mencari
-        userCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        locDisplay.innerText = `📍 Mencari akurasi... (Akurasi: ${Math.round(accuracy)}m)`;
-
-        if (accuracy <= 50) {
-            navigator.geolocation.clearWatch(watchID); // Hentikan pencarian jika sudah akurat
-            locDisplay.innerText = `📍 Koord: ${userCoords.lat.toFixed(6)}, ${userCoords.lon.toFixed(6)}`;
-            
-            // Proses reverse geocoding setelah koordinat akurat
-            fetchLocationDetails(userCoords.lat, userCoords.lon);
-        }
-    }, (err) => {
-        locDisplay.innerText = "❌ GPS Tidak Aktif";
-        addrDisplay.innerText = "TOWALE, KEC. -, KAB. DONGGALA";
-    }, options);
-}
-
-// Fungsi terpisah agar kode lebih rapi
-async function fetchLocationDetails(lat, lon) {
-    try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`, {
-            headers: { 'User-Agent': 'E-Absensi-Donggala' }
-        });
-        const data = await response.json();
-        const addr = data.address;
-
-        const desa = addr.village || addr.suburb || addr.hamlet || addr.town || "TOWALE";
-        
-        let rawKec = addr.county || addr.city_district || "";
-        rawKec = rawKec.replace(/^(Kecamatan|Kabupaten)\s+/i, "");
-        const kecamatan = rawKec ? rawKec.toUpperCase() : "-";
-
-        let rawKab = addr.county || addr.city || "DONGGALA";
-        rawKab = rawKab.replace(/^(Kabupaten|Regency|City)\s+/i, "");
-        rawKab = rawKab.replace(/\s+(Regency|Kabupaten|City)$/i, "");
-        const kabupaten = rawKab.toUpperCase();
-
-        wilayah.desa = desa;
-        wilayah.kecamatan = kecamatan;
-
-        document.getElementById('detailAlamat').innerText = 
-            `${desa.toUpperCase()}, KEC. ${kecamatan}, KAB. ${kabupaten}`;
-    } catch (e) {
-        document.getElementById('detailAlamat').innerText = "TOWALE, KEC. -, KAB. DONGGALA";
+        await fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+        alert("✅ LAPORAN TERKIRIM!"); 
+        location.reload();
     }
-}        
-async function submitAbsensi() {
-            const status = document.getElementById('statusAbsen').value;
-            if(!imgData && status !== "Alpa") return alert("Ambil foto bukti!");
-            
-            const btn = document.getElementById('btnSubmit');
-            btn.disabled = true; btn.innerText = "MENGIRIM...";
-
-            const payload = {
-                action: 'submitAbsen',
-                nip: localStorage.getItem('userNIP'),
-                nama: localStorage.getItem('userName'),
-                peran: localStorage.getItem('userPeran'),
-                jenjang: document.getElementById('jenjang').value,
-                namaSekolah: document.getElementById('namaSekolah').value,
-                status: status,
-                shiftMulai: document.getElementById('shiftMulai').value,
-                shiftSelesai: document.getElementById('shiftSelesai').value,
-                kelas: document.getElementById('kelas').value,
-                mapel: document.getElementById('mapel').value,
-                bab: document.getElementById('bab').value,
-                materi: document.getElementById('materi').value,
-                jmlSiswa: document.getElementById('jmlSiswa').value,
-                desa: wilayah.desa,
-                kecamatan: wilayah.kecamatan,
-                catatan: document.getElementById('catatanKegiatan').value,
-                keterangan: document.getElementById('keterangan').value,
-                image: imgData,
-                lat: userCoords.lat, lon: userCoords.lon
-            };
-
-            await fetch(API, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-            alert("✅ LAPORAN TERKIRIM!"); location.reload();
-        }
-
-        function logout() { localStorage.clear(); location.reload(); }
-    </script>
+</script>
 </body>
 </html>
