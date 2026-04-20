@@ -199,6 +199,14 @@
             imgData = null; document.getElementById('photoPreview').classList.add('hidden'); 
             document.getElementById('video').classList.remove('hidden'); 
         }
+        // Tambahkan daftar kecamatan di bagian atas skrip Anda
+const daftarKecamatan = [
+    "BANAWA", "BANAWA TENGAH", "BANAWA SELATAN", "RIO PAKAVA", 
+    "PINEMBANI", "TANANTOVEA", "LABUAN", "SINDUE", 
+    "SINDUE TOMBUSA BORA", "SINDUE TOBATA", "SIRENJA", 
+    "BALAESANG", "BALAESANG TANJUNG", "DAMPELAS", 
+    "SOJOL", "SOJOL UTARA"
+];
 
         async function initLocation() {
             navigator.geolocation.getCurrentPosition(async (pos) => {
